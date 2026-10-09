@@ -7,81 +7,69 @@
     <style>
         :root {
             --primary: #00d4ff;
-            --bg: #020b16;
-            --panel: rgba(10, 25, 41, 0.8);
+            --bg: #010810;
+            --panel: rgba(10, 25, 41, 0.85);
         }
 
         body, html {
-            margin: 0;
-            padding: 0;
-            width: 100%;
-            height: 100%;
+            margin: 0; padding: 0;
+            width: 100%; height: 100%;
             background-color: var(--bg);
             color: white;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Segoe UI', Roboto, sans-serif;
             overflow: hidden;
         }
 
-        #canvas {
-            display: block;
-        }
+        #canvas { display: block; }
 
-        /* Interface UI */
         #ui-layer {
             position: absolute;
-            top: 20px;
-            left: 20px;
-            width: 300px;
+            top: 20px; left: 20px;
+            width: 280px;
             background: var(--panel);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(0, 212, 255, 0.3);
             border-radius: 12px;
             padding: 20px;
-            pointer-events: auto;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+            box-shadow: 0 0 30px rgba(0,0,0,0.8);
+            user-select: none;
         }
 
-        h1 { font-size: 18px; margin-bottom: 15px; color: var(--primary); text-transform: uppercase; letter-spacing: 2px; }
+        h1 { 
+            font-size: 16px; margin: 0 0 15px 0; 
+            color: var(--primary); 
+            text-transform: uppercase; letter-spacing: 2px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            padding-bottom: 10px;
+        }
         
         .star-info {
-            font-size: 14px;
-            margin-bottom: 20px;
-            border-left: 2px solid var(--primary);
-            padding-left: 10px;
+            font-size: 13px; margin-bottom: 15px;
+            line-height: 1.6; color: #e0e0e0;
         }
 
+        .label { color: var(--primary); font-weight: bold; font-size: 10px; text-transform: uppercase; }
+
         select {
-            width: 100%;
-            background: #051221;
-            color: white;
-            border: 1px solid var(--primary);
-            padding: 8px;
-            border-radius: 4px;
-            margin-bottom: 10px;
+            width: 100%; background: #051221; color: white;
+            border: 1px solid var(--primary); padding: 8px;
+            border-radius: 4px; margin-bottom: 15px; outline: none;
         }
 
         button {
-            width: 100%;
-            background: var(--primary);
-            color: #000;
-            border: none;
-            padding: 10px;
-            border-radius: 4px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: all 0.3s;
+            width: 100%; background: var(--primary); color: #000;
+            border: none; padding: 12px; border-radius: 4px;
+            font-weight: bold; cursor: pointer; transition: 0.3s;
+            text-transform: uppercase; letter-spacing: 1px;
         }
 
-        button:hover {
-            background: #fff;
-            box-shadow: 0 0 15px var(--primary);
-        }
+        button:hover { background: #fff; box-shadow: 0 0 20px var(--primary); }
 
         .coords {
-            font-family: monospace;
-            font-size: 12px;
-            color: #888;
-            margin-top: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 11px; color: #50a0b0;
+            margin-top: 15px; padding-top: 10px;
+            border-top: 1px solid rgba(255,255,255,0.1);
         }
     </style>
 </head>
@@ -90,16 +78,17 @@
     <div id="ui-layer">
         <h1>Stellar Mapper</h1>
         <div class="star-info" id="star-display">
-            <strong>Alvo:</strong> Sol (Origem)<br>
-            <strong>Distância:</strong> 0 LY
+            <span class="label">Status:</span> Estacionário<br>
+            <span class="label">Alvo:</span> Sol (Origem)<br>
+            <span class="label">Distância:</span> 0.00 LY
         </div>
         
-        <label for="star-select">Destino (Catálogo Gliese):</label>
+        <label class="label">Destino (Catálogo Gliese):</label>
         <select id="star-select"></select>
         
-        <button onclick="engageFTL()">INICIAR VIAGEM FTL</button>
+        <button onclick="engageFTL()">INICIAR SALTO FTL</button>
         
-        <div class="coords" id="cam-coords">Cam: 0, 0, 0</div>
+        <div class="coords" id="cam-coords">POS: 0.00, 0.00, 0.00</div>
     </div>
 
     <canvas id="canvas"></canvas>
@@ -111,46 +100,40 @@
         const starDisplay = document.getElementById('star-display');
         const camCoordsDisplay = document.getElementById('cam-coords');
 
-        // Dados Reais (Amostra do Catálogo Gliese / Próximas)
-        // Coordenadas aproximadas em Anos-Luz (LY)
+        // Dados do Catálogo Gliese (Amostra de Estrelas Próximas)
         const glieseData = [
-            { name: "Sol", x: 0, y: 0, z: 0, mag: 2, color: "#fff" },
-            { name: "Proxima Centauri", x: -1.2, y: 4.0, z: 1.1, mag: 1.5, color: "#ff6b6b" },
-            { name: "Alpha Centauri A", x: -1.3, y: 4.1, z: 1.3, mag: 2.5, color: "#ffd93d" },
-            { name: "Barnard's Star", x: -0.1, y: 5.9, z: 0.2, mag: 1.2, color: "#ff9292" },
-            { name: "Wolf 359", x: -3.6, y: 6.8, z: -1.5, mag: 1.0, color: "#ff4d4d" },
-            { name: "Lalande 21185", x: 0.5, y: 8.2, z: 1.2, mag: 1.8, color: "#ff8b8b" },
-            { name: "Sirius A", x: -1.6, y: -6.1, z: 5.8, mag: 3.5, color: "#a5d8ff" },
-            { name: "Luyten 726-8", x: -1.5, y: -0.5, z: 8.6, mag: 1.1, color: "#ff6b6b" },
-            { name: "Ross 154", x: -0.5, y: -2.3, z: 9.4, mag: 1.3, color: "#ff4d4d" },
-            { name: "Ross 248", x: 0.8, y: -1.5, z: 10.2, mag: 1.0, color: "#ff4d4d" },
-            { name: "Epsilon Eridani", x: -6.7, y: -3.8, z: 7.5, mag: 2.2, color: "#ffcc00" },
-            { name: "61 Cygni A", x: 10.4, y: 3.2, z: 4.1, mag: 2.0, color: "#ff9f43" },
-            { name: "Procyon A", x: -3.2, y: 7.5, z: 8.4, mag: 3.0, color: "#f1f2f6" },
-            { name: "Tau Ceti", x: -2.5, y: -4.1, z: 10.8, mag: 2.1, color: "#fff" }
+            { name: "Sol", x: 0, y: 0, z: 0, mag: 4, color: "#fffeb0" },
+            { name: "Proxima Centauri", x: -1.2, y: 0.5, z: 4.2, mag: 2, color: "#ff6b6b" },
+            { name: "Alpha Centauri A", x: -1.3, y: 0.6, z: 4.3, mag: 5, color: "#ffd93d" },
+            { name: "Barnard's Star", x: -0.1, y: 1.9, z: 5.9, mag: 2, color: "#ff9292" },
+            { name: "Wolf 359", x: -3.6, y: 2.8, z: 7.8, mag: 1.5, color: "#ff4d4d" },
+            { name: "Sirius A", x: -1.6, y: -6.1, z: 8.6, mag: 8, color: "#a5d8ff" },
+            { name: "Epsilon Eridani", x: -6.7, y: -3.8, z: 10.5, mag: 4, color: "#ffcc00" },
+            { name: "Procyon A", x: -3.2, y: 7.5, z: 11.4, mag: 6, color: "#f1f2f6" },
+            { name: "61 Cygni A", x: 10.4, y: 3.2, z: 11.4, mag: 3, color: "#ff9f43" },
+            { name: "Tau Ceti", x: -2.5, y: -4.1, z: 11.9, mag: 4, color: "#ffffff" }
         ];
 
-        // Gerar mais 80 estrelas aleatórias para completar o catálogo visualmente
-        for(let i=0; i<86; i++) {
+        // Gerar estrelas de fundo aleatórias
+        for(let i=0; i<200; i++) {
             glieseData.push({
-                name: `Gliese ${Math.floor(Math.random()*999)}`,
-                x: (Math.random() - 0.5) * 40,
-                y: (Math.random() - 0.5) * 40,
-                z: (Math.random() - 0.5) * 40,
-                mag: Math.random() * 2,
-                color: ["#a5d8ff", "#fff", "#ffd93d", "#ff6b6b"][Math.floor(Math.random()*4)]
+                name: `Gliese ${Math.floor(Math.random()*999 + 100)}`,
+                x: (Math.random() - 0.5) * 100,
+                y: (Math.random() - 0.5) * 100,
+                z: (Math.random() - 0.5) * 100,
+                mag: Math.random() * 3 + 1,
+                color: ["#a5d8ff", "#ffffff", "#ffd93d", "#ff6b6b"][Math.floor(Math.random()*4)]
             });
         }
 
         // Configuração da Câmera
-        let camera = { x: 0, y: 0, z: -20, targetX: 0, targetY: 0, targetZ: -20, fov: 600 };
-        let isTraveling = false;
+        let camera = { x: 0, y: 0, z: -15, targetX: 0, targetY: 0, targetZ: -15, fov: 400 };
+        let currentTarget = glieseData[0];
 
         function init() {
             window.addEventListener('resize', resize);
             resize();
             
-            // Popular Select
             glieseData.forEach((star, index) => {
                 const opt = document.createElement('option');
                 opt.value = index;
@@ -167,82 +150,90 @@
         }
 
         function engageFTL() {
-            const star = glieseData[starSelect.value];
-            camera.targetX = -star.x;
-            camera.targetY = -star.y;
-            camera.targetZ = -star.z - 5; // Para parar um pouco antes da estrela
-            isTraveling = true;
-            
-            starDisplay.innerHTML = `<strong>Alvo:</strong> ${star.name}<br><strong>Coordenadas:</strong> [${star.x.toFixed(2)}, ${star.y.toFixed(2)}, ${star.z.toFixed(2)}]`;
+            currentTarget = glieseData[starSelect.value];
+            // Posiciona a câmera um pouco recuada do alvo no eixo Z para visualização
+            camera.targetX = -currentTarget.x;
+            camera.targetY = -currentTarget.y;
+            camera.targetZ = -currentTarget.z + 10; 
         }
 
-        function drawStar(x, y, size, color, name) {
+        function drawStar(x, y, size, color, name, distance) {
             const screenX = canvas.width / 2 + x;
             const screenY = canvas.height / 2 + y;
 
-            // Bloom Effect - Camadas de Canvas
-            ctx.shadowBlur = size * 5;
-            ctx.shadowColor = color;
+            if (screenX < -100 || screenX > canvas.width + 100 || screenY < -100 || screenY > canvas.height + 100) return;
+
+            ctx.globalCompositeOperation = 'lighter';
             
-            // Brilho Externo (Glow)
-            ctx.fillStyle = color;
+            // Brilho (Glow)
+            const gradient = ctx.createRadialGradient(screenX, screenY, 0, screenX, screenY, size * 4);
+            gradient.addColorStop(0, color);
+            gradient.addColorStop(1, 'transparent');
+            
+            ctx.fillStyle = gradient;
             ctx.beginPath();
-            ctx.arc(screenX, screenY, size * 2, 0, Math.PI * 2);
-            ctx.globalAlpha = 0.2;
+            ctx.arc(screenX, screenY, size * 4, 0, Math.PI * 2);
             ctx.fill();
 
-            // Núcleo da Estrela
-            ctx.globalAlpha = 1.0;
+            // Núcleo
+            ctx.fillStyle = "#fff";
             ctx.beginPath();
-            ctx.arc(screenX, screenY, size, 0, Math.PI * 2);
+            ctx.arc(screenX, screenY, size * 0.8, 0, Math.PI * 2);
             ctx.fill();
             
-            // Label
-            if (size > 1.5) {
-                ctx.shadowBlur = 0;
-                ctx.fillStyle = "rgba(255,255,255,0.7)";
+            // Label para estrelas próximas
+            if (distance < 20) {
+                ctx.globalCompositeOperation = 'source-over';
+                ctx.fillStyle = "rgba(255,255,255,0.5)";
                 ctx.font = "10px monospace";
                 ctx.fillText(name, screenX + size + 5, screenY + 3);
             }
         }
 
         function animate() {
-            // Limpar com rastro leve (opcional para efeito de velocidade)
-            ctx.fillStyle = 'rgba(2, 11, 22, 0.3)';
+            // Fundo escuro com leve rastro (Motion Blur)
+            ctx.globalCompositeOperation = 'source-over';
+            ctx.fillStyle = 'rgba(1, 8, 16, 0.2)';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // Suavização da Câmera (Interpolação/FTL)
-            const lerpFactor = 0.05;
-            camera.x += (camera.targetX - camera.x) * lerpFactor;
-            camera.y += (camera.targetY - camera.y) * lerpFactor;
-            camera.z += (camera.targetZ - camera.z) * lerpFactor;
+            // Suavização da Câmera (Lerp)
+            camera.x += (camera.targetX - camera.x) * 0.05;
+            camera.y += (camera.targetY - camera.y) * 0.05;
+            camera.z += (camera.targetZ - camera.z) * 0.05;
 
-            camCoordsDisplay.innerText = `Cam: X:${camera.x.toFixed(2)} Y:${camera.y.toFixed(2)} Z:${camera.z.toFixed(2)}`;
+            // Atualizar UI
+            const distToTarget = Math.sqrt(
+                Math.pow(currentTarget.x + camera.x, 2) + 
+                Math.pow(currentTarget.y + camera.y, 2) + 
+                Math.pow(currentTarget.z + camera.z, 2)
+            );
 
-            // Ordenar estrelas pela distância Z (Painters Algorithm) para profundidade
-            const sortedStars = glieseData.map(s => {
-                const relativeZ = s.z + camera.z;
-                return { ...s, relativeZ };
-            }).sort((a, b) => b.relativeZ - a.relativeZ);
+            starDisplay.innerHTML = `
+                <span class="label">Status:</span> ${distToTarget > 0.1 ? 'Em Trânsito FTL' : 'Estacionário'}<br>
+                <span class="label">Alvo:</span> ${currentTarget.name}<br>
+                <span class="label">Distância:</span> ${distToTarget.toFixed(2)} LY
+            `;
+            camCoordsDisplay.innerText = `POS: X:${(-camera.x).toFixed(2)} Y:${(-camera.y).toFixed(2)} Z:${(-camera.z).toFixed(2)}`;
 
-            sortedStars.forEach(star => {
-                const x = star.x + camera.x;
-                const y = star.y + camera.y;
-                const z = star.z + camera.z;
+            // Ordenar por profundidade (Z)
+            const renderedStars = glieseData.map(s => {
+                return {
+                    ...s,
+                    relX: s.x + camera.x,
+                    relY: s.y + camera.y,
+                    relZ: s.z + camera.z
+                };
+            })
+            .filter(s => s.relZ > 0.5) // Clip stars behind camera
+            .sort((a, b) => b.relZ - a.relZ);
 
-                // Não desenhar se estiver atrás da câmera
-                if (z <= 0) return;
+            renderedStars.forEach(star => {
+                const scale = camera.fov / star.relZ;
+                const px = star.relX * scale;
+                const py = star.relY * scale;
+                const pSize = (star.mag * (scale / 100));
 
-                // Projeção 3D -> 2D
-                const scale = camera.fov / z;
-                const px = x * scale;
-                const py = y * scale;
-                const pSize = Math.max(0.1, (star.mag * scale) / 500);
-
-                // Só desenha se estiver dentro da tela
-                if (px > -canvas.width/2 && px < canvas.width/2 && py > -canvas.height/2 && py < canvas.height/2) {
-                    drawStar(px, py, pSize, star.color, star.name);
-                }
+                drawStar(px, py, Math.max(0.5, pSize), star.color, star.name, star.relZ);
             });
 
             requestAnimationFrame(animate);
